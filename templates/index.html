@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>今天吃什么</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: linear-gradient(160deg, #fff7e6, #ffe0c2);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 24px 16px;
+  }
+  .wrap { width: 100%; max-width: 520px; }
+  h1 { font-size: 22px; text-align: center; margin: 0 0 16px; color: #7a4a12; }
+
+  .mode-switch {
+    display: flex;
+    background: #fff;
+    border-radius: 12px;
+    padding: 4px;
+    margin-bottom: 16px;
+    box-shadow: 0 4px 12px rgba(160, 100, 20, 0.08);
+  }
+  .mode-btn {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    background: transparent;
+    color: #8a6a3a;
+    transition: all 0.2s;
+  }
+  .mode-btn.active {
+    background: #f0a04b;
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(240, 160, 75, 0.4);
+  }
+
+  .card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 6px 24px rgba(160, 100, 20, 0.12);
+    margin-bottom: 16px;
+  }
+
+  .wheel-box { position: relative; width: 100%; aspect-ratio: 1/1; margin: 0 auto; max-width: 420px; display: block; }
+  canvas { width: 100%; height: 100%; display: block; }
+  .pointer {
+    position: absolute;
+    top: -6px; left: 50%;
+    transform: translateX(-50%);
+    width: 0; height: 0;
+    border-left: 14px solid transparent;
+    border-right: 14px solid transparent;
+    border-top: 26px solid #e05252;
+    filter: drop-shadow(0 2px 3px rgba(0,0,0,.25));
+    z-index: 2;
+  }
+  .center-btn {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 84px; height: 84px;
+    border-radius: 50%;
+    border: none;
+    background: #e05252;
+    color: #fff;
+    font-size: 17px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(224, 82, 82, .45);
+    z-index: 3;
+  }
+  .center-btn:disabled { background: #c9a9a9; cursor: not-allowed; box-shadow: none; }
+
+  .flip-box { display: none; width: 100%; max-width: 420px; margin: 0 auto; }
+  .flip-grid {
+    display: grid;
+    gap: 10px;
+    width: 100%;
+    margin-bottom: 12px;
+  }
+  .flip-card {
+    aspect-ratio: 1/1;
+    perspective: 800px;
+    cursor: pointer;
+    animation: dealCard 0.4s ease backwards;
+  }
+  @keyframes dealCard {
+    0% { transform: scale(0.5) translateY(-20px); opacity: 0; }
+    100% { transform: scale(1) translateY(0); opacity: 1; }
+  }
+
+  .flip-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    text-align: center;
+    transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
+    transform-style: preserve-3d;
+  }
+  .flip-card.flipped .flip-inner { transform: rotateY(180deg); }
+  .flip-front, .flip-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 3px 10px rgba(160, 100, 20, 0.15);
+    padding: 6px;
+  }
+  .flip-front {
+    background: linear-gradient(135deg, #f0a04b, #e08a2e);
+    color: #fff;
+    font-size: 36px;
+    font-weight: 900;
+    transition: transform 0.1s;
+  }
+  .flip-card:not(.flipped):hover .flip-front {
+    transform: scale(1.05);
+    background: linear-gradient(135deg, #f5b063, #e59636);
+  }
+  .flip-back {
+    background: #fff4e5;
+    border: 2px solid #f0a04b;
+    color: #7a4a12;
+    transform: rotateY(180deg);
+    font-weight: 600;
+    line-height: 1.2;
+    word-break: break-all;
+    overflow: hidden;
+  }
+  .flip-back span { display: block; }
+
+  .result {
+    text-align: center;
+    font-size: 18px;
+    color: #7a4a12;
+    min-height: 28px;
+    margin-top: 12px;
+    font-weight: 600;
+  }
+
+  label { font-size: 14px; color: #8a6a3a; display: block; margin: 10px 0 6px; }
+
+  .input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .input-wrap input {
+    width: 100%;
+    padding: 10px 36px 10px 12px;
+    border: 1px solid #e6d2b5;
+    border-radius: 10px;
+    font-size: 15px;
+    outline: none;
+    background: #fff;
+  }
+  .input-wrap input:focus { border-color: #e05252; }
+
+  .clear-input-btn {
+    position: absolute;
+    right: 10px;
+    background: #f5e6d3;
+    border: none;
+    color: #a08050;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+  .clear-input-btn:hover {
+    background: #e05252;
+    color: #fff;
+  }
+
+  .unit-suffix {
+    position: absolute;
+    right: 12px;
+    color: #a08050;
+    font-size: 14px;
+    pointer-events: none;
+  }
+
+  .row { display: flex; gap: 10px; }
+  .row > * { flex: 1; }
+
+  select[multiple] { width: 100%; padding: 10px 12px; border: 1px solid #e6d2b5; border-radius: 10px; font-size: 15px; outline: none; height: auto; min-height: 110px; }
+  select[multiple]:focus { border-color: #e05252; }
+
+  button.btn {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 12px;
+    background: #f0a04b;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 12px;
+    transition: background .2s;
+  }
+  button.btn:hover { background: #e08a2e; }
+  button.btn:disabled { background: #d8c4a8; cursor: not-allowed; }
+
+  button.btn-clear {
+    background: transparent;
+    color: #e05252;
+    border: 1px solid #e05252;
+    padding: 8px;
+    font-size: 14px;
+    margin-top: 10px;
+    transition: all .2s;
+  }
+  button.btn-clear:hover { background: #fff2df; }
+
+  .hint { font-size: 12px; color: #a08050; margin-top: 8px; line-height: 1.5; }
+  .error { color: #d33; font-size: 14px; margin-top: 8px; }
+  .tag-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+
+  .tag {
+    background: #fff2df;
+    border: 1px solid #f0c894;
+    color: #8a5a1a;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 13px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+    user-select: none;
+  }
+  .tag:hover { filter: brightness(0.95); }
+
+  .tag.excluded {
+    background: #f5f5f5;
+    border: 1px dashed #ccc;
+    color: #999;
+  }
+  .tag.excluded:hover {
+    background: #e8e8e8;
+  }
+
+  .picker-link { font-size: 12px; color: #e08a2e; text-decoration: none; }
+  .picker-link:hover { text-decoration: underline; }
+
+  details {
+    border-top: 1px dashed #f0c894;
+    padding-top: 16px;
+    margin-top: 16px;
+  }
+  details summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: #8a6a3a;
+    outline: none;
+    user-select: none;
+  }
+  details[open] summary {
+    color: #e08a2e;
+    margin-bottom: 8px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🍜 今天吃什么</h1>
+
+  <div class="mode-switch">
+    <button class="mode-btn active" id="modeWheel">🎡 转盘模式</button>
+    <button class="mode-btn" id="modeFlip">🃏 翻牌模式</button>
+  </div>
+
+  <div class="card">
+    <div class="wheel-box" id="wheelContainer">
+      <div class="pointer"></div>
+      <canvas id="wheel" width="600" height="600"></canvas>
+      <button class="center-btn" id="spinBtn">开始</button>
+    </div>
+
+    <div class="flip-box" id="flipContainer">
+      <div class="flip-grid" id="flipGrid"></div>
+      <div style="margin-top: 4px;">
+        <div class="hint" style="text-align: center; line-height: 36px;" id="flipHint">👆 随便点开一张试试手气</div>
+        <button class="btn" id="resetFlipBtn" style="display: none; margin-top: 0; background: #90a4ae;">🔄 重新洗牌</button>
+      </div>
+    </div>
+
+    <div class="result" id="result"></div>
+  </div>
+
+  <div class="card">
+    <details>
+      <summary>🍽️ 选择餐馆类型（默认中餐厅）</summary>
+      <div class="hint" style="margin-top: 6px; margin-bottom: 6px;">按住 Ctrl / Cmd 可多选</div>
+      <select id="categorySelect" multiple>
+        <option value="050000">全部餐饮</option>
+        <option value="050100" selected>中餐厅</option>
+        <option value="050200">西餐厅</option>
+        <option value="050300">休闲餐厅</option>
+        <option value="050117">火锅店</option>
+      </select>
+    </details>
+
+    <label style="margin-top: 16px;">从附近随机抽取的餐厅数量</label>
+    <div class="row">
+      <div class="input-wrap">
+        <input type="number" id="countInput" value="9" min="1" max="30" style="padding-right: 30px;" />
+        <span class="unit-suffix">个</span>
+      </div>
+      <div class="input-wrap">
+        <input type="number" id="radiusInput" value="2000" min="100" max="50000" style="padding-right: 30px;" />
+        <span class="unit-suffix">米</span>
+      </div>
+    </div>
+
+    <div style="border-top: 1px dashed #f0c894; padding-top: 16px; margin-top: 16px;">
+      <label style="font-size: 15px; font-weight: 600; color: #e08a2e; margin-top: 0;">📍 手动坐标定位（推荐）</label>
+      <div class="hint" style="margin-bottom: 6px;">
+        去 <a class="picker-link" href="https://lbs.amap.com/tools/picker" target="_blank">高德坐标拾取器</a> 复制“经度,纬度”填入下方（按回车可直接搜索）。
+      </div>
+
+      <div class="input-wrap">
+        <input type="text" id="coordInput" value="113.709278,22.992985" placeholder="例如：113.709278,22.992985" />
+        <button class="clear-input-btn" id="clearCoordBtn" title="清空坐标">✕</button>
+      </div>
+
+      <button class="btn" id="searchBtn" style="margin-top: 8px;">使用该坐标拉取附近餐厅</button>
+    </div>
+
+    <details>
+      <summary>🛰️ 自动定位</summary>
+      <div class="hint" style="margin-top: 6px; margin-bottom: 6px;">获取当前坐标后，会自动填入上方并立即搜索。</div>
+      <button class="btn" id="locateBtn">开始自动定位并搜索</button>
+    </details>
+
+    <details>
+      <summary>✍️ 手动添加自定义选项</summary>
+      <div class="hint" style="margin-top: 6px; margin-bottom: 6px;">用英文逗号或中文逗号分隔。输入内容会自动保存生效。</div>
+
+      <div class="input-wrap">
+        <input type="text" id="customInput" placeholder="例如：火锅,烧烤,日料,面馆,麻辣烫" oninput="autoApplyCustom()" />
+        <button class="clear-input-btn" id="clearCustomBtn" title="清空自定义">✕</button>
+      </div>
+    </details>
+
+    <details>
+      <summary>🚫 排除关键词</summary>
+      <div class="hint" style="margin-top: 6px; margin-bottom: 6px;">点击下方标签上的“X”会自动记录。含有关键词的店以后不会再搜出来。</div>
+
+      <div class="input-wrap">
+        <input type="text" id="blacklistInput" placeholder="例如：麦当劳,肯德基,食堂" oninput="autoApplyCustom()" />
+        <button class="clear-input-btn" id="clearBlacklistBtn" title="清空排除词">✕</button>
+      </div>
+    </details>
+
+    <div class="hint" id="locateHint" style="margin-top: 10px;">等待搜索...</div>
+    <div class="error" id="errorBox"></div>
+
+    <div class="tag-list" id="excludedTagList" style="margin-top: 12px;"></div>
+    <div class="tag-list" id="restTagList"></div>
+
+    <button class="btn btn-clear" id="clearSearchBtn" style="display: none;">🧹 清除搜索内容</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  const DEFAULT_ITEMS = ['火锅', '烧烤', '日料', '面馆', '麻辣烫', '快餐', '粤菜', '湘菜', '川菜'];
+  let items = [...DEFAULT_ITEMS];
+  let rawNearbyRestaurants = [];
+  let currentMode = 'wheel';
+  let wheelSpinning = false;
+  let flipLocked = false;
+
+  const modeWheelBtn = document.getElementById('modeWheel');
+  const modeFlipBtn = document.getElementById('modeFlip');
+  const wheelContainer = document.getElementById('wheelContainer');
+  const flipContainer = document.getElementById('flipContainer');
+  const spinBtn = document.getElementById('spinBtn');
+  const flipGrid = document.getElementById('flipGrid');
+  const flipHint = document.getElementById('flipHint');
+  const resetFlipBtn = document.getElementById('resetFlipBtn');
+  const resultEl = document.getElementById('result');
+  const customInput = document.getElementById('customInput');
+  const blacklistInput = document.getElementById('blacklistInput');
+  const countInput = document.getElementById('countInput');
+  const radiusInput = document.getElementById('radiusInput');
+  const categorySelect = document.getElementById('categorySelect');
+  const locateBtn = document.getElementById('locateBtn');
+  const locateHint = document.getElementById('locateHint');
+  const errorBox = document.getElementById('errorBox');
+  const restTagList = document.getElementById('restTagList');
+  const excludedTagList = document.getElementById('excludedTagList');
+  const clearSearchBtn = document.getElementById('clearSearchBtn');
+
+  const coordInput = document.getElementById('coordInput');
+  const searchBtn = document.getElementById('searchBtn');
+  const clearCoordBtn = document.getElementById('clearCoordBtn');
+  const clearCustomBtn = document.getElementById('clearCustomBtn');
+  const clearBlacklistBtn = document.getElementById('clearBlacklistBtn');
+
+  const savedBlacklist = localStorage.getItem('eatwhat_blacklist');
+  if (savedBlacklist) {
+    blacklistInput.value = savedBlacklist;
+  }
+
+  const canvas = document.getElementById('wheel');
+  const ctx = canvas.getContext('2d');
+  let rotation = 0;
+  const COLORS = [
+    '#ff8a65', '#ffb74d', '#fff176', '#aed581',
+    '#4dd0e1', '#7986cb', '#ba68c8', '#f06292',
+    '#90a4ae', '#dce775', '#4db6ac', '#ffd54f'
+  ];
+
+  function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+  }
+
+  function drawWheel() {
+    const size = canvas.width;
+    const cx = size / 2;
+    const cy = size / 2;
+    const r = size / 2 - 8;
+    ctx.clearRect(0, 0, size, size);
+    const n = items.length;
+    const arc = (Math.PI * 2) / n;
+
+    for (let i = 0; i < n; i++) {
+      const start = rotation + i * arc;
+      const end = start + arc;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, r, start, end);
+      ctx.closePath();
+      ctx.fillStyle = COLORS[i % COLORS.length];
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(start + arc / 2);
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#5a3a10';
+      ctx.font = 'bold 26px -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif';
+      const text = items[i].length > 8 ? items[i].slice(0, 8) + '…' : items[i];
+      ctx.fillText(text, r - 24, 0);
+      ctx.restore();
+    }
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, 56, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff';
+    ctx.fill();
+  }
+
+  function spinWheel() {
+    if (wheelSpinning || items.length < 2) return;
+    wheelSpinning = true;
+    spinBtn.disabled = true;
+    resultEl.textContent = '';
+
+    const n = items.length;
+    const arc = (Math.PI * 2) / n;
+    const targetIndex = Math.floor(Math.random() * n);
+
+    const desired = -Math.PI / 2 - (targetIndex * arc + arc / 2);
+    const current = rotation % (Math.PI * 2);
+    const extraTurns = (5 + Math.floor(Math.random() * 4)) * Math.PI * 2;
+    let delta = desired - current;
+    while (delta < 0) delta += Math.PI * 2;
+    const finalRotation = rotation + extraTurns + delta;
+
+    const startRotation = rotation;
+    const startTime = performance.now();
+    const duration = 4200;
+
+    function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
+
+    function frame(now) {
+      const t = Math.min((now - startTime) / duration, 1);
+      rotation = startRotation + (finalRotation - startRotation) * easeOutCubic(t);
+      drawWheel();
+      if (t < 1) {
+        requestAnimationFrame(frame);
+      } else {
+        rotation = finalRotation % (Math.PI * 2);
+        wheelSpinning = false;
+        spinBtn.disabled = false;
+        resultEl.textContent = '🎉 就吃：' + items[targetIndex];
+      }
+    }
+    requestAnimationFrame(frame);
+  }
+
+  function renderFlipCards() {
+    flipGrid.innerHTML = '';
+    flipLocked = false;
+    flipHint.style.display = 'block';
+    resetFlipBtn.style.display = 'none';
+
+    const n = items.length;
+    let cols = Math.ceil(Math.sqrt(n));
+    if (n === 1) cols = 1;
+    if (n === 2) cols = 2;
+    if (n >= 3 && n <= 9) cols = 3;
+    if (n > 9 && n <= 12) cols = 4;
+    flipGrid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+
+    items.forEach((name, idx) => {
+      let fontSize = 20;
+      if (name.length > 4) fontSize = 16;
+      if (name.length > 6) fontSize = 14;
+      if (name.length > 8) fontSize = 12;
+
+      const card = document.createElement('div');
+      card.className = 'flip-card';
+      card.dataset.index = idx;
+      card.style.animationDelay = `${idx * 0.03}s`;
+
+      card.innerHTML = `
+        <div class="flip-inner">
+          <div class="flip-front">?</div>
+          <div class="flip-back"><span style="font-size:${fontSize}px;">${name}</span></div>
+        </div>
+      `;
+      card.addEventListener('click', () => handleFlipClick(card, idx));
+      flipGrid.appendChild(card);
+    });
+  }
+
+  function handleFlipClick(card, idx) {
+    if (flipLocked || card.classList.contains('flipped')) return;
+    flipLocked = true;
+    flipHint.style.display = 'none';
+    resetFlipBtn.style.display = 'block';
+    card.classList.add('flipped');
+
+    setTimeout(() => {
+      const cards = Array.from(flipGrid.children);
+      cards.forEach((c, i) => {
+        if (i !== idx) setTimeout(() => c.classList.add('flipped'), i * 30);
+      });
+      setTimeout(() => { resultEl.textContent = '🎉 就吃：' + items[idx]; }, 600);
+    }, 400);
+  }
+
+  function resetFlip() {
+    if (!flipLocked) return;
+    items = shuffleArray([...items]);
+    resultEl.textContent = '';
+    flipLocked = false;
+    flipHint.style.display = 'block';
+    resetFlipBtn.style.display = 'none';
+    renderFlipCards();
+  }
+
+  function switchMode(mode) {
+    currentMode = mode;
+    if (mode === 'wheel') {
+      modeWheelBtn.classList.add('active');
+      modeFlipBtn.classList.remove('active');
+      wheelContainer.style.display = 'block';
+      flipContainer.style.display = 'none';
+      drawWheel();
+    } else {
+      modeFlipBtn.classList.add('active');
+      modeWheelBtn.classList.remove('active');
+      wheelContainer.style.display = 'none';
+      flipContainer.style.display = 'block';
+      renderFlipCards();
+    }
+    resultEl.textContent = '';
+  }
+
+  function applyItems() {
+    const customRaw = customInput.value.split(/[,，]/).map(s => s.trim()).filter(Boolean);
+    const blacklistRaw = blacklistInput.value.split(/[,，]/).map(s => s.trim()).filter(Boolean);
+
+    localStorage.setItem('eatwhat_blacklist', blacklistInput.value);
+
+    let validList = [];
+    let excludedList = [];
+
+    rawNearbyRestaurants.forEach(item => {
+      if (blacklistRaw.some(keyword => item.name.includes(keyword))) {
+        excludedList.push(item);
+      } else {
+        validList.push(item);
+      }
+    });
+
+    let targetCount = parseInt(countInput.value, 10) || 9;
+    const displayedNearby = validList.slice(0, targetCount);
+
+    excludedTagList.innerHTML = '';
+    excludedList.forEach(r => {
+      const span = document.createElement('span');
+      span.className = 'tag excluded';
+      span.innerHTML = `
+        ${r.name} ${r.distance ? `· ${r.distance}m` : ''}
+        <strong style="color: #e08a2e;">+</strong>
+      `;
+
+      span.addEventListener('click', () => {
+        let currentBlacklist = blacklistInput.value.split(/[,，]/).map(s => s.trim()).filter(Boolean);
+        currentBlacklist = currentBlacklist.filter(k => !r.name.includes(k));
+        blacklistInput.value = currentBlacklist.join(',');
+        applyItems();
+      });
+
+      excludedTagList.appendChild(span);
+    });
+
+    restTagList.innerHTML = '';
+    displayedNearby.forEach(r => {
+      const span = document.createElement('span');
+      span.className = 'tag';
+      span.innerHTML = `
+        ${r.name} ${r.distance ? `· ${r.distance}m` : ''}
+        <strong>✕</strong>
+      `;
+
+      span.addEventListener('click', () => {
+        let currentBlacklist = blacklistInput.value.split(/[,，]/).map(s => s.trim()).filter(Boolean);
+        if (!currentBlacklist.includes(r.name)) {
+          currentBlacklist.push(r.name);
+        }
+        blacklistInput.value = currentBlacklist.join(',');
+        applyItems();
+      });
+
+      restTagList.appendChild(span);
+    });
+
+    const merged = [];
+    const seen = new Set();
+    [...customRaw, ...displayedNearby.map(r => r.name)].forEach(name => {
+      if (!seen.has(name)) { seen.add(name); merged.push(name); }
+    });
+
+    let finalItems = shuffleArray(merged);
+
+    // 如果清空后没有选项，回退到默认的 9 个选项
+    if (finalItems.length === 0) {
+      finalItems = [...DEFAULT_ITEMS];
+    }
+
+    if (finalItems.length < 2) {
+      errorBox.textContent = '过滤后不足 2 个选项，请减少排除词或手动添加';
+      return;
+    }
+    errorBox.textContent = '';
+    items = finalItems;
+    resultEl.textContent = '';
+
+    if (currentMode === 'wheel') drawWheel();
+    else renderFlipCards();
+  }
+
+  window.autoApplyCustom = function() {
+    applyItems();
+  };
+
+  function clearSearchResults() {
+    rawNearbyRestaurants = [];
+    excludedTagList.innerHTML = '';
+    restTagList.innerHTML = '';
+    clearSearchBtn.style.display = 'none';
+    locateHint.textContent = '已清除搜索结果。';
+    applyItems();
+  }
+
+  function wgs84ToGcj02(lng, lat) {
+    const PI = 3.1415926535897932384626;
+    const a = 6378245.0;
+    const ee = 0.00669342162296594323;
+    function outOfChina(lng, lat) {
+      return (lng < 72.004 || lng > 137.8347) || (lat < 0.8293 || lat > 55.8271);
+    }
+    function transformLat(x, y) {
+      let ret = -100.0 + 2.0 * x + 3.0 * y + 0.2 * y * y + 0.1 * x * y + 0.2 * Math.sqrt(Math.abs(x));
+      ret += (20.0 * Math.sin(6.0 * x * PI) + 20.0 * Math.sin(2.0 * x * PI)) * 2.0 / 3.0;
+      ret += (20.0 * Math.sin(y * PI) + 40.0 * Math.sin(y / 3.0 * PI)) * 2.0 / 3.0;
+      ret += (160.0 * Math.sin(y / 12.0 * PI) + 320 * Math.sin(y * PI / 30.0)) * 2.0 / 3.0;
+      return ret;
+    }
+    function transformLng(x, y) {
+      let ret = 300.0 + x + 2.0 * y + 0.1 * x * x + 0.1 * x * y + 0.1 * Math.sqrt(Math.abs(x));
+      ret += (20.0 * Math.sin(6.0 * x * PI) + 20.0 * Math.sin(2.0 * x * PI)) * 2.0 / 3.0;
+      ret += (20.0 * Math.sin(x * PI) + 40.0 * Math.sin(x / 3.0 * PI)) * 2.0 / 3.0;
+      ret += (150.0 * Math.sin(x / 12.0 * PI) + 300.0 * Math.sin(x / 30.0 * PI)) * 2.0 / 3.0;
+      return ret;
+    }
+    if (outOfChina(lng, lat)) return { lng, lat };
+    let dLat = transformLat(lng - 105.0, lat - 35.0);
+    let dLng = transformLng(lng - 105.0, lat - 35.0);
+    const radLat = lat / 180.0 * PI;
+    let magic = Math.sin(radLat);
+    magic = 1 - ee * magic * magic;
+    const sqrtMagic = Math.sqrt(magic);
+    dLat = (dLat * 180.0) / ((a * (1 - ee)) / (magic * sqrtMagic) * PI);
+    dLng = (dLng * 180.0) / (a / sqrtMagic * Math.cos(radLat) * PI);
+    return { lng: lng + dLng, lat: lat + dLat };
+  }
+
+  function getPosition() {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) { reject(new Error('浏览器不支持定位')); return; }
+      navigator.geolocation.getCurrentPosition(
+        pos => resolve({ lng: pos.coords.longitude, lat: pos.coords.latitude }),
+        err => {
+          const msg = { 1: '定位权限被拒绝', 2: '无法获取位置', 3: '定位超时' }[err.code] || '定位失败';
+          reject(new Error(msg));
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+      );
+    });
+  }
+
+  function getSelectedTypes() {
+    const selected = Array.from(categorySelect.selectedOptions).map(o => o.value);
+    return selected.length ? selected.join('|') : '050100';
+  }
+
+  async function fetchWithCoords(lng, lat) {
+    errorBox.textContent = '';
+    locateHint.textContent = '正在搜索附近餐厅…';
+    try {
+      const wantCount = parseInt(countInput.value, 10) || 9;
+      const fetchCount = Math.min(25, wantCount + 10);
+      const radius = parseInt(radiusInput.value, 10) || 2000;
+      const types = getSelectedTypes();
+
+      const resp = await fetch('/api/nearby', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lng, lat, count: fetchCount, radius, types })
+      });
+      const data = await resp.json();
+      if (!data.ok) throw new Error(data.error || '搜索失败');
+
+      rawNearbyRestaurants = data.restaurants;
+      clearSearchBtn.style.display = 'block';
+      locateHint.textContent = `后台已拉取 ${rawNearbyRestaurants.length} 家餐厅。`;
+
+      applyItems();
+    } catch (e) {
+      errorBox.textContent = e.message;
+      locateHint.textContent = '拉取失败，可换类别重试，或检查坐标格式。';
+    }
+  }
+
+  function parseAndFetch() {
+    const raw = coordInput.value.trim();
+    const parts = raw.split(/[,，]/);
+    if (parts.length !== 2) {
+      errorBox.textContent = '格式应为：经度,纬度（例如 113.75,23.02）';
+      return;
+    }
+    const lng = parseFloat(parts[0]);
+    const lat = parseFloat(parts[1]);
+    if (isNaN(lng) || isNaN(lat)) {
+      errorBox.textContent = '经纬度必须是数字';
+      return;
+    }
+    fetchWithCoords(lng, lat);
+  }
+
+  async function locateAndFetch() {
+    errorBox.textContent = '';
+    locateBtn.disabled = true;
+    locateHint.textContent = '正在定位…';
+    try {
+      const { lng, lat } = await getPosition();
+      const gcj = wgs84ToGcj02(lng, lat);
+
+      coordInput.value = `${gcj.lng.toFixed(6)},${gcj.lat.toFixed(6)}`;
+      locateHint.textContent = `定位成功，正在搜索…`;
+      await fetchWithCoords(gcj.lng, gcj.lat);
+    } catch (e) {
+      errorBox.textContent = e.message;
+      locateHint.textContent = '自动定位失败，请手动输入坐标。';
+    } finally {
+      locateBtn.disabled = false;
+    }
+  }
+
+  modeWheelBtn.addEventListener('click', () => switchMode('wheel'));
+  modeFlipBtn.addEventListener('click', () => switchMode('flip'));
+  spinBtn.addEventListener('click', spinWheel);
+  resetFlipBtn.addEventListener('click', resetFlip);
+
+  searchBtn.addEventListener('click', parseAndFetch);
+  clearSearchBtn.addEventListener('click', clearSearchResults);
+  locateBtn.addEventListener('click', locateAndFetch);
+
+  clearCoordBtn.addEventListener('click', () => {
+    coordInput.value = '';
+    coordInput.focus();
+  });
+
+  clearCustomBtn.addEventListener('click', () => {
+    customInput.value = '';
+    applyItems();
+  });
+
+  clearBlacklistBtn.addEventListener('click', () => {
+    blacklistInput.value = '';
+    applyItems();
+  });
+
+  coordInput.addEventListener('keypress', function (e) {
+    if (e.key === 'Enter') {
+      parseAndFetch();
+    }
+  });
+
+  drawWheel();
+})();
+</script>
+</body>
+</html>
